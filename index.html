@@ -21,14 +21,14 @@
   Stesso indirizzo per tutte le pagine, si cambia solo la parte dopo il "?":
     makalu.html?p=registro          → pagina gestori
     makalu.html?p=genitori&g=CODICE → pagina genitori di un gruppo
-    makalu.html?p=bambini           → modulo prova bambini
+    makalu.html?p=giovani           → modulo prova giovani (6–16 anni)
     makalu.html                     → modulo prova adulti
 -->
 <iframe id="app" title="Makalu" allow="clipboard-write"></iframe>
 <script>
   var APP = 'https://script.google.com/macros/s/AKfycbwa5XJf2IA04MRSWObb4OKUmOT_FSR5TsyLMKO7HFX_aCJDW-OSh9K2FSxmMANoj-YMWA/exec';
   var q = new URLSearchParams(location.search);
-  var titoli = { registro: 'Makalu Gestione', genitori: 'Makalu Ingressi', bambini: 'Prova Makalu' };
+  var titoli = { registro: 'Makalu Gestione', genitori: 'Makalu Ingressi', giovani: 'Prova Makalu' };
   document.title = titoli[q.get('p')] || 'Prova Makalu';
   document.getElementById('app').src = APP + location.search;
 </script>
