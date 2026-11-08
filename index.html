@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Makalu">
+<link rel="icon" href="https://lh3.googleusercontent.com/d/1g2mZWdc9qFaCmJERO-XIyZHQxMqrJtug=s192">
+<link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1g2mZWdc9qFaCmJERO-XIyZHQxMqrJtug=s180">
+<title>Makalu</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #eef1f6; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+</style>
+</head>
+<body>
+<!--
+  Contenitore delle pagine Makalu (Google Apps Script) senza il banner grigio di Google.
+  Stesso indirizzo per tutte le pagine, si cambia solo la parte dopo il "?":
+    makalu.html?p=registro          → pagina gestori
+    makalu.html?p=genitori&g=CODICE → pagina genitori di un gruppo
+    makalu.html?p=bambini           → modulo prova bambini
+    makalu.html                     → modulo prova adulti
+-->
+<iframe id="app" title="Makalu" allow="clipboard-write"></iframe>
+<script>
+  var APP = 'https://script.google.com/macros/s/AKfycbwa5XJf2IA04MRSWObb4OKUmOT_FSR5TsyLMKO7HFX_aCJDW-OSh9K2FSxmMANoj-YMWA/exec';
+  var q = new URLSearchParams(location.search);
+  var titoli = { registro: 'Makalu Gestione', genitori: 'Makalu Ingressi', bambini: 'Prova Makalu' };
+  document.title = titoli[q.get('p')] || 'Prova Makalu';
+  document.getElementById('app').src = APP + location.search;
+</script>
+</body>
+</html>
