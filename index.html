@@ -7,12 +7,23 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Makalu">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
 <link rel="icon" href="https://lh3.googleusercontent.com/d/1g2mZWdc9qFaCmJERO-XIyZHQxMqrJtug=s192">
 <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1g2mZWdc9qFaCmJERO-XIyZHQxMqrJtug=s180">
 <title>Makalu</title>
 <style>
   html, body { margin: 0; height: 100%; background: #eef1f6; }
   iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+  /* schermata di attesa: compare subito, sparisce quando la pagina vera è arrivata */
+  #attesa { position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    background: #eef1f6; color: #4a5468; font: 500 15px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; transition: opacity .25s; }
+  #attesa.via { opacity: 0; pointer-events: none; }
+  #attesa .nome { font-weight: 700; font-size: 17px; color: #141a26; }
+  #attesa .giro { width: 24px; height: 24px; border-radius: 50%; border: 3px solid #d5dbe4; border-top-color: #3d5fc4; animation: giro .8s linear infinite; }
+  @keyframes giro { to { transform: rotate(360deg); } }
+  #lento { display: none; text-align: center; padding: 0 24px; }
+  #lento button { display: block; margin: 12px auto 0; border: 0; border-radius: 12px; padding: 12px 22px; font: inherit; font-weight: 600; background: #3d5fc4; color: #fff; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -24,13 +35,31 @@
     makalu.html?p=giovani           → modulo prova giovani (6–16 anni)
     makalu.html                     → modulo prova adulti
 -->
+<div id="attesa">
+  <div class="nome">Palestra Makalu</div>
+  <div class="giro"></div>
+  <div id="msg">Caricamento…</div>
+  <div id="lento">Ci sta mettendo più del solito.<button type="button" onclick="location.reload()">Ricarica</button></div>
+</div>
 <iframe id="app" title="Makalu" allow="clipboard-write; web-share"></iframe>
 <script>
   var APP = 'https://script.google.com/macros/s/AKfycbwa5XJf2IA04MRSWObb4OKUmOT_FSR5TsyLMKO7HFX_aCJDW-OSh9K2FSxmMANoj-YMWA/exec';
   var q = new URLSearchParams(location.search);
   var titoli = { registro: 'Makalu Gestione', genitori: 'Makalu Ingressi', giovani: 'Prova Makalu' };
   document.title = titoli[q.get('p')] || 'Prova Makalu';
-  document.getElementById('app').src = APP + location.search;
+  var attesa = document.getElementById('attesa'), riquadro = document.getElementById('app'), pronta = false;
+  function togliAttesa() { if (pronta) return; pronta = true; attesa.className = 'via'; setTimeout(function () { attesa.style.display = 'none'; }, 350); }
+  // la pagina Makalu avvisa appena è arrivata: l'attesa sparisce in quel momento
+  window.addEventListener('message', function (e) { if (e.data === 'makalu-pronto') togliAttesa(); });
+  // riserva, se l'avviso non arriva: poco dopo il caricamento del riquadro
+  riquadro.addEventListener('load', function () { setTimeout(togliAttesa, 2500); });
+  // se dopo 12 secondi non è arrivato niente (rete lenta, Google lento) si offre di ricaricare
+  setTimeout(function () { if (!pronta) { document.getElementById('msg').style.display = 'none'; document.getElementById('lento').style.display = 'block'; } }, 12000);
+  // "authuser=0": senza, chi ha più account Google collegati nel browser viene deviato da Google
+  // su un indirizzo che dà "Impossibile aprire il file in questo momento" (verificato il 19/11/2026)
+  var coda = location.search;
+  if (!q.has('authuser')) coda += (coda ? '&' : '?') + 'authuser=0';
+  riquadro.src = APP + coda;
 </script>
 </body>
 </html>
