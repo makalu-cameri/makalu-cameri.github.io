@@ -42,7 +42,6 @@
   <div id="msg">Caricamento…</div>
   <div id="lento">Ci sta mettendo più del solito.<button type="button" id="ricarica">Ricarica</button><a href="#" id="comunque">Mostra comunque la pagina</a></div>
 </div>
-<iframe id="app" title="Makalu" allow="clipboard-write; web-share"></iframe>
 <script>
   var APP = 'https://script.google.com/macros/s/AKfycbwa5XJf2IA04MRSWObb4OKUmOT_FSR5TsyLMKO7HFX_aCJDW-OSh9K2FSxmMANoj-YMWA/exec';
   var q = new URLSearchParams(location.search);
@@ -53,7 +52,7 @@
   var coda = location.search;
   if (!q.has('authuser')) coda += (coda ? '&' : '?') + 'authuser=0';
 
-  var attesa = document.getElementById('attesa'), riquadro = document.getElementById('app');
+  var attesa = document.getElementById('attesa'), riquadro = null;
   var msg = document.getElementById('msg'), lento = document.getElementById('lento');
   var pronta = false;      // la pagina Makalu ha avvisato di essere arrivata
   var giro = 0;            // tentativi di caricamento in questo ciclo
@@ -62,6 +61,18 @@
   var ultimoVivo = 0;      // quando è arrivato l'ultimo "sono viva"
   var turno = 0;           // controllo al rientro in corso (i vecchi non contano più)
   var TEMPO_TENTATIVO = 10000, TEMPO_VIVA = 6000;
+
+  // Ogni caricamento usa un riquadro nuovo con un nome mai usato: così il telefono, quando riapre la pagina dopo tanto tempo,
+  // non prova a ripristinare dentro il riquadro quello che c'era la volta prima (il 20/11/2026 dall'icona sull'iPhone
+  // Google aveva risposto ma lo schermo restava bianco).
+  function nuovoRiquadro(indirizzo) {
+    if (riquadro) riquadro.remove();
+    riquadro = document.createElement('iframe');
+    riquadro.id = 'app'; riquadro.title = 'Makalu'; riquadro.name = 'makalu' + Date.now();
+    riquadro.allow = 'clipboard-write; web-share';
+    riquadro.src = indirizzo;
+    document.body.appendChild(riquadro);
+  }
 
   function togliAttesa() { pronta = true; clearTimeout(orologio); attesa.className = 'via'; }
 
@@ -73,7 +84,7 @@
     attesa.className = ''; lento.style.display = 'none';
     msg.style.display = ''; msg.textContent = giro > 1 ? 'Sto riprovando…' : 'Caricamento…';
     clearTimeout(orologio);
-    riquadro.src = APP + coda + (giro > 1 ? '&r=' + Date.now() : '');
+    nuovoRiquadro(APP + coda + (giro > 1 ? '&r=' + Date.now() : ''));
     orologio = setTimeout(scaduto, TEMPO_TENTATIVO);
   }
   function scaduto() {
