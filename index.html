@@ -15,15 +15,16 @@
 <style>
   html, body { margin: 0; height: 100%; background: #eef1f6; }
   iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
-  /* schermata di attesa: compare subito, sparisce quando la pagina vera è arrivata */
+  /* schermata di attesa: compare subito, sparisce solo quando la pagina vera avvisa di essere arrivata */
   #attesa { position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
     background: #eef1f6; color: #4a5468; font: 500 15px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; transition: opacity .25s; }
-  #attesa.via { opacity: 0; pointer-events: none; }
+  #attesa.via { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .25s, visibility 0s .25s; }
   #attesa .nome { font-weight: 700; font-size: 17px; color: #141a26; }
   #attesa .giro { width: 24px; height: 24px; border-radius: 50%; border: 3px solid #d5dbe4; border-top-color: #3d5fc4; animation: giro .8s linear infinite; }
   @keyframes giro { to { transform: rotate(360deg); } }
   #lento { display: none; text-align: center; padding: 0 24px; }
   #lento button { display: block; margin: 12px auto 0; border: 0; border-radius: 12px; padding: 12px 22px; font: inherit; font-weight: 600; background: #3d5fc4; color: #fff; cursor: pointer; }
+  #lento a { display: inline-block; margin-top: 14px; font-size: 13px; color: #6b7588; }
 </style>
 </head>
 <body>
@@ -39,7 +40,7 @@
   <div class="nome">Palestra Makalu</div>
   <div class="giro"></div>
   <div id="msg">Caricamento…</div>
-  <div id="lento">Ci sta mettendo più del solito.<button type="button" onclick="location.reload()">Ricarica</button></div>
+  <div id="lento">Ci sta mettendo più del solito.<button type="button" id="ricarica">Ricarica</button><a href="#" id="comunque">Mostra comunque la pagina</a></div>
 </div>
 <iframe id="app" title="Makalu" allow="clipboard-write; web-share"></iframe>
 <script>
@@ -47,19 +48,65 @@
   var q = new URLSearchParams(location.search);
   var titoli = { registro: 'Makalu Gestione', genitori: 'Makalu Ingressi', giovani: 'Prova Makalu' };
   document.title = titoli[q.get('p')] || 'Prova Makalu';
-  var attesa = document.getElementById('attesa'), riquadro = document.getElementById('app'), pronta = false;
-  function togliAttesa() { if (pronta) return; pronta = true; attesa.className = 'via'; setTimeout(function () { attesa.style.display = 'none'; }, 350); }
-  // la pagina Makalu avvisa appena è arrivata: l'attesa sparisce in quel momento
-  window.addEventListener('message', function (e) { if (e.data === 'makalu-pronto') togliAttesa(); });
-  // riserva, se l'avviso non arriva: poco dopo il caricamento del riquadro
-  riquadro.addEventListener('load', function () { setTimeout(togliAttesa, 2500); });
-  // se dopo 12 secondi non è arrivato niente (rete lenta, Google lento) si offre di ricaricare
-  setTimeout(function () { if (!pronta) { document.getElementById('msg').style.display = 'none'; document.getElementById('lento').style.display = 'block'; } }, 12000);
   // "authuser=0": senza, chi ha più account Google collegati nel browser viene deviato da Google
   // su un indirizzo che dà "Impossibile aprire il file in questo momento" (verificato il 19/11/2026)
   var coda = location.search;
   if (!q.has('authuser')) coda += (coda ? '&' : '?') + 'authuser=0';
-  riquadro.src = APP + coda;
+
+  var attesa = document.getElementById('attesa'), riquadro = document.getElementById('app');
+  var msg = document.getElementById('msg'), lento = document.getElementById('lento');
+  var pronta = false;      // la pagina Makalu ha avvisato di essere arrivata
+  var giro = 0;            // tentativi di caricamento in questo ciclo
+  var orologio = 0;        // scadenza del tentativo in corso
+  var sente = false;       // la pagina Makalu manda il segnale "sono viva" (versioni dal 20/11/2026)
+  var ultimoVivo = 0;      // quando è arrivato l'ultimo "sono viva"
+  var turno = 0;           // controllo al rientro in corso (i vecchi non contano più)
+  var TEMPO_TENTATIVO = 10000, TEMPO_VIVA = 6000;
+
+  function togliAttesa() { pronta = true; clearTimeout(orologio); attesa.className = 'via'; }
+
+  // Carica (o ricarica) la pagina Makalu nel riquadro. L'attesa resta finché la pagina non avvisa:
+  // prima spariva comunque dopo 2,5 secondi e, se Google non aveva consegnato la pagina, restava uno schermo bianco
+  // senza modo di uscirne (dall'icona sulla schermata Home non c'è il tasto per ricaricare).
+  function carica() {
+    giro++; pronta = false;
+    attesa.className = ''; lento.style.display = 'none';
+    msg.style.display = ''; msg.textContent = giro > 1 ? 'Sto riprovando…' : 'Caricamento…';
+    clearTimeout(orologio);
+    riquadro.src = APP + coda + (giro > 1 ? '&r=' + Date.now() : '');
+    orologio = setTimeout(scaduto, TEMPO_TENTATIVO);
+  }
+  function scaduto() {
+    if (pronta) return;
+    if (giro < 2) { carica(); return; }                              // un secondo tentativo da solo
+    msg.style.display = 'none'; lento.style.display = 'block';       // poi si offre di ricaricare
+  }
+
+  window.addEventListener('message', function (e) {
+    if (e.data === 'makalu-pronto') togliAttesa();
+    else if (e.data === 'makalu-vivo') { sente = true; ultimoVivo = Date.now(); }
+  });
+
+  // Rientro dopo che la pagina è stata in secondo piano (telefono bloccato, altra app): se la pagina Makalu
+  // non dà più segni di vita entro pochi secondi, il riquadro è rimasto vuoto e lo si ricarica.
+  function controlla() {
+    if (!pronta || !sente) return;
+    var mio = ++turno, t0 = Date.now();
+    setTimeout(function () {
+      if (mio !== turno || document.visibilityState !== 'visible' || !pronta) return;
+      if (ultimoVivo < t0 - 1500) { giro = 0; carica(); }
+    }, TEMPO_VIVA);
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') controlla(); else turno++; });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) controlla(); });
+
+  document.getElementById('ricarica').addEventListener('click', function () { location.reload(); });
+  document.getElementById('comunque').addEventListener('click', function (e) { e.preventDefault(); togliAttesa(); });
+
+  carica();
+
+  // Copia locale di questa pagina: all'apertura dall'icona compare subito, anche se in quel momento la rete non risponde
+  if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }
 </script>
 </body>
 </html>
